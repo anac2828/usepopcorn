@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useMovies } from "./useMovies";
 import StarRating from "./StarRating";
+import { useLocalStorageState } from "./useLocalStorateState";
 
 const tempMovieData = [
   {
@@ -57,18 +59,10 @@ const KEY = "4c217adc";
 
 export default function App() {
   const [query, setQuery] = useState("");
-  const [movies, setMovies] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
   const [selectedId, setSelectedId] = useState(null);
   // const [watched, setWatched] = useState([]);
-
-  // The callback function in useState() will only be called once during the inital render.
-  const [watched, setWatched] = useState(() => {
-    const storedValue = localStorage.getItem("watched");
-    return JSON.parse(storedValue);
-  });
-  // const tempQuery = "interstellar";
+  const { movies, isLoading, error } = useMovies(query);
+  const [watched, setWatched] = useLocalStorageState([], "watched");
 
   function handleSelectMovie(id) {
     // close movie if the same movie is clicked on
@@ -90,70 +84,6 @@ export default function App() {
   function handleDeleteWatchedMovie(id) {
     setWatched((watched) => watched.filter((movie) => movie.imdbID !== id));
   }
-
-  //SAVES WATCHED MOVIE LIST TO LOCAL STOREAGE WHEN A MOVIE IS ADDED TO THE WATCHED LIST
-  useEffect(() => {
-    localStorage.setItem("watched", JSON.stringify(watched));
-  }, [watched]);
-
-  // this will only run when the component renders for the first time when the sencond argument is an empty array
-  useEffect(() => {
-    // For clean up function
-    const controller = new AbortController();
-
-    const fetchMovies = async () => {
-      try {
-        // isLoading will display the text "Loading ..."
-        setIsLoading(true);
-        setError("");
-
-        // API REQUEST
-        const res = await fetch(
-          `http://www.omdbapi.com/?apikey=${KEY}&s=${query}`,
-          { signal: controller.signal }
-        );
-
-        // Error handler
-        if (!res.ok)
-          throw new Error("Something went wrong with fetching movies");
-
-        // Convert data to json
-        const data = await res.json();
-
-        // Error handler
-        if (data.Response === "False") throw new Error("Movie not found");
-
-        // State update with return API data
-        setMovies(data.Search);
-        setError("");
-      } catch (err) {
-        if (err.name !== "AbortError") {
-          setError(err.message);
-        }
-      } finally {
-        //Removes the "Loading ..." message
-        setIsLoading(false);
-      }
-    };
-
-    // END OFF API CALL
-
-    // Aborts Use effect if search query is less than 3 characters
-    if (query.length < 3) {
-      setMovies([]);
-      setError("");
-      return;
-    }
-
-    handleCloseMovie();
-    // CALL API REQUEST function
-    fetchMovies();
-
-    // clean up function when query is being typed by user to prevent multiple data requests
-    return function () {
-      controller.abort();
-    };
-  }, [query]);
 
   return (
     <>
@@ -235,11 +165,34 @@ function Logo() {
 }
 
 function Search({ query, setQuery }) {
-  //Will search input field will be focused when the page loads, but this is not ideal.
+  // useRef is a better option when an element needs to be selected
+  // useRef selects the element
+  const inputEl = useRef(null);
+
+  // will run once on component load
   useEffect(() => {
-    const el = document.querySelector(".search");
-    el.focus();
-  }, []);
+    // callback for event listener
+    const callback = (e) => {
+      if (document.activeElement === inputEl.current) return;
+
+      if (e.code === "Enter") {
+        console.log("focus");
+        inputEl.current.focus();
+        setQuery("");
+      }
+    };
+
+    document.addEventListener("keydown", callback);
+
+    // clean up function to remove event listener
+    return () => document.addEventListener("keydown", callback);
+  }, [setQuery]);
+
+  //Will search input field will be focused when the page loads, but this is not ideal.
+  // useEffect(() => {
+  //   const el = document.querySelector(".search");
+  //   el.focus();
+  // }, []);
 
   return (
     <input
@@ -248,6 +201,8 @@ function Search({ query, setQuery }) {
       placeholder="Search movies..."
       value={query}
       onChange={(e) => setQuery(e.target.value)}
+      // this will connect the input element to the inputEl ref
+      ref={inputEl}
     />
   );
 }
@@ -316,6 +271,17 @@ function MovieDetails({
   const [isLoading, setIsLoading] = useState(null);
   const [userRating, setUserRating] = useState("");
 
+  // Refs cannot be mutated when a component is render. Use a useEffect to mutate the ref.
+  const countRef = useRef(0);
+
+  useEffect(() => {
+    if (userRating) countRef.current++;
+  }, [userRating]);
+
+  const [alreadyInWatchedList] = watched.filter(
+    (watched) => watched.imdbID === selectedId
+  );
+
   const {
     Title: title,
     Year: year,
@@ -329,7 +295,7 @@ function MovieDetails({
     Genre: genre,
   } = movie;
 
-  const handleAdd = () => {
+  function handleAdd() {
     const newWatchedMovie = {
       imdbID: selectedId,
       title,
@@ -338,15 +304,13 @@ function MovieDetails({
       imdbRating: Number(imdbRating),
       runtime: Number(runtime.split(" ").at(0)),
       userRating,
+      countRatingDecisions: countRef.current,
     };
 
+    // from app component
     onAddWatchedMovie(newWatchedMovie);
     onCloseMovie();
-  };
-
-  const [alreadyInWatchedList] = watched.filter(
-    (watched) => watched.imdbID === selectedId
-  );
+  }
 
   useEffect(() => {
     const callback = (e) => {
