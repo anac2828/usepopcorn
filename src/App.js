@@ -235,6 +235,12 @@ function Logo() {
 }
 
 function Search({ query, setQuery }) {
+  //Will search input field will be focused when the page loads, but this is not ideal.
+  useEffect(() => {
+    const el = document.querySelector(".search");
+    el.focus();
+  }, []);
+
   return (
     <input
       className="search"
