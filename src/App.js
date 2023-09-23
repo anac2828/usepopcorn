@@ -60,9 +60,14 @@ export default function App() {
   const [movies, setMovies] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [watched, setWatched] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
+  // const [watched, setWatched] = useState([]);
 
+  // The callback function in useState() will only be called once during the inital render.
+  const [watched, setWatched] = useState(() => {
+    const storedValue = localStorage.getItem("watched");
+    return JSON.parse(storedValue);
+  });
   // const tempQuery = "interstellar";
 
   function handleSelectMovie(id) {
@@ -77,11 +82,19 @@ export default function App() {
   function handleAddWatchedMovie(movie) {
     // a new array of objects will be created with the current watched list and the new watched movie
     setWatched((watched) => [...watched, movie]);
+
+    // Saving watched List State
+    // localStorage.setItem("watached", JSON.stringify([...watched, movie]));
   }
 
   function handleDeleteWatchedMovie(id) {
     setWatched((watched) => watched.filter((movie) => movie.imdbID !== id));
   }
+
+  //SAVES WATCHED MOVIE LIST TO LOCAL STOREAGE WHEN A MOVIE IS ADDED TO THE WATCHED LIST
+  useEffect(() => {
+    localStorage.setItem("watched", JSON.stringify(watched));
+  }, [watched]);
 
   // this will only run when the component renders for the first time when the sencond argument is an empty array
   useEffect(() => {
@@ -439,15 +452,15 @@ function WatchedSummary({ watched }) {
         </p>
         <p>
           <span>⭐️</span>
-          <span>{avgImdbRating}</span>
+          <span>{avgImdbRating.toFixed(2)}</span>
         </p>
         <p>
           <span>🌟</span>
-          <span>{avgUserRating}</span>
+          <span>{avgUserRating.toFixed(2)}</span>
         </p>
         <p>
           <span>⏳</span>
-          <span>{avgRuntime} min</span>
+          <span>{avgRuntime.toFixed(2)} min</span>
         </p>
       </div>
     </div>
