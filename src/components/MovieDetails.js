@@ -3,7 +3,7 @@ import { useKey } from '../hooks/useKey'
 import Loader from './utils/Loader'
 import StarRating from './StarRating'
 
-const KEY = '4c217adc'
+const KEY = process.env.REACT_APP_API_KEY
 // ON SELECT MOVIE DETAILS COMPONENT **********
 export default function MovieDetails({
   selectedId,
@@ -77,7 +77,7 @@ export default function MovieDetails({
     const getMovieDetails = async () => {
       setIsLoading(true)
       const res = await fetch(
-        `http://www.omdbapi.com/?apikey=${KEY}&i=${selectedId}`
+        `https://www.omdbapi.com/?apikey=${KEY}&i=${selectedId}`
       )
       const data = await res.json()
       setMovie(data)
